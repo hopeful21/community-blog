@@ -1,36 +1,113 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Community Blog
+
+A modern community blogging platform built with Next.js App Router, Supabase, TypeScript, and TailwindCSS. The app supports authentication, post publishing, secure author-only editing, realtime comments, and a responsive UI with a mobile burger menu.
+
+## Features
+
+- Supabase email/password authentication
+- Create and publish blog posts
+- Author-only edit and delete controls
+- Server-side ownership checks for protected post mutations
+- Supabase RLS-ready data model for posts, comments, and profiles
+- Realtime comments with optimistic UI
+- Responsive landing page and mobile navbar menu
+- Protected edit route at `/posts/[id]/edit`
+- Legacy edit route redirect from `/posts/edit/[id]`
+
+## Tech Stack
+
+- Next.js 16 App Router
+- React 19
+- TypeScript
+- TailwindCSS 4
+- Supabase Auth
+- Supabase PostgreSQL
+- Supabase Realtime
+- `@supabase/ssr`
 
 ## Getting Started
 
-First, run the development server:
+Install dependencies:
+
+```bash
+npm install
+```
+
+Create `.env.local` in the project root:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+Run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000` in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Supabase Setup
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+This project expects these public tables:
 
-## Learn More
+- `profiles`
+- `posts`
+- `comments`
 
-To learn more about Next.js, take a look at the following resources:
+The recommended SQL schema and RLS policies are documented in [supabasePlan.md](./supabasePlan.md).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Important ownership rules:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `posts.user_id` should reference `profiles.id`
+- `profiles.id` should reference `auth.users.id`
+- Users can update/delete only posts where `auth.uid() = user_id`
+- Users can create comments only with their own `user_id`
 
-## Deploy on Vercel
+## Available Scripts
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+npm run dev
+npm run build
+npm run start
+npm run lint
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Project Structure
+
+```text
+app/
+  auth/
+    login/
+    signup/
+  posts/
+    [id]/
+      edit/
+      page.tsx
+    actions.ts
+    create/
+components/
+  Comments.tsx
+  Navbar.tsx
+  HeroSection.tsx
+  PostsSection.tsx
+contexts/
+  AuthContext.tsx
+lib/
+  supabase/
+    client.ts
+    server.ts
+```
+
+## Security Notes
+
+Frontend checks are used only to improve user experience. Real authorization is enforced in two places:
+
+- Server Actions verify the current user before update/delete operations.
+- Supabase RLS should reject unauthorized database writes even if someone bypasses the UI.
+
+## Author
+
+fitrah maulana malik ai engineer 2026  
+GitHub: [hopeful21](https://github.com/hopeful21)
