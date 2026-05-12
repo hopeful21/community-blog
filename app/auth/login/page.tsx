@@ -1,47 +1,49 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
-
   const router = useRouter();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
   async function handleLogin() {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!normalizedEmail || !password) {
+      setMessage("Email and password are required.");
+      return;
+    }
 
     setLoading(true);
     setMessage("");
 
     const { error } = await supabase.auth.signInWithPassword({
-      email,
+      email: normalizedEmail,
       password,
     });
 
     if (error) {
       setMessage(error.message);
-    } else {
-      setMessage("Login success 🚀");
-
-      setTimeout(() => {
-        router.push("/");
-      }, 1000);
+      setLoading(false);
+      return;
     }
 
+    setMessage("Login success.");
     setLoading(false);
+    router.push("/");
+    router.refresh();
   }
 
   return (
     <main className="min-h-screen bg-black text-white flex items-center justify-center px-6">
-
       <div className="w-full max-w-md bg-white/5 border border-white/10 rounded-[32px] p-8 backdrop-blur-xl">
-
         <div className="mb-8 text-center">
           <h1 className="text-4xl font-black">
             Welcome Back
@@ -53,12 +55,12 @@ export default function LoginPage() {
         </div>
 
         <div className="space-y-6">
-
           <input
             type="email"
             placeholder="Email address"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(event) => setEmail(event.target.value)}
+            autoComplete="email"
             className="
               w-full
               bg-black/30
@@ -75,7 +77,8 @@ export default function LoginPage() {
             type="password"
             placeholder="Password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(event) => setPassword(event.target.value)}
+            autoComplete="current-password"
             className="
               w-full
               bg-black/30
@@ -100,6 +103,7 @@ export default function LoginPage() {
               font-bold
               hover:scale-[1.02]
               transition-transform
+              disabled:opacity-50
             "
           >
             {loading ? "Loading..." : "Login"}
@@ -112,18 +116,16 @@ export default function LoginPage() {
           )}
 
           <p className="text-center text-gray-400 text-sm">
-            Don't have an account?{" "}
-            <a
+            Don&apos;t have an account?{" "}
+            <Link
               href="/auth/signup"
               className="text-cyan-400"
             >
               Signup
-            </a>
+            </Link>
           </p>
-
         </div>
       </div>
-
     </main>
   );
 }
