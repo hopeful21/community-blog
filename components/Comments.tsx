@@ -66,6 +66,8 @@ export default function Comments({
   const [content, setContent] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [deletingCommentIds, setDeletingCommentIds] = useState<string[]>([]);
 
   const fetchComments = useCallback(async () => {
 
@@ -118,6 +120,16 @@ export default function Comments({
 
   useEffect(() => {
 
+    supabase.auth.getUser().then(({ data }) => {
+      setCurrentUserId(data.user?.id ?? null);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setCurrentUserId(session?.user.id ?? null);
+    });
+
     const fetchTimeout = window.setTimeout(() => {
       void fetchComments();
     }, 0);
@@ -141,6 +153,7 @@ export default function Comments({
     return () => {
       window.clearTimeout(fetchTimeout);
       supabase.removeChannel(channel);
+      subscription.unsubscribe();
     };
 
   }, [fetchComments, postId]);
@@ -245,6 +258,61 @@ export default function Comments({
     void fetchComments();
   }
 
+  async function deleteComment(commentId: string) {
+
+    if (deletingCommentIds.includes(commentId)) return;
+
+    const commentToDelete = comments.find((comment) => comment.id === commentId);
+
+    if (!commentToDelete || commentToDelete.isOptimistic) return;
+
+    setErrorMessage("");
+    setDeletingCommentIds((prev) => [
+      ...prev,
+      commentId,
+    ]);
+
+    setComments((prev) =>
+      prev.filter((comment) => comment.id !== commentId)
+    );
+
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      setComments((prev) => [
+        commentToDelete,
+        ...prev,
+      ]);
+      setErrorMessage("Please login first.");
+      setDeletingCommentIds((prev) =>
+        prev.filter((id) => id !== commentId)
+      );
+      return;
+    }
+
+    const { error } = await supabase
+      .from("comments")
+      .delete()
+      .eq("id", commentId)
+      .eq("user_id", user.id);
+
+    if (error) {
+      setComments((prev) => [
+        commentToDelete,
+        ...prev,
+      ]);
+      setErrorMessage(error.message);
+    }
+
+    setDeletingCommentIds((prev) =>
+      prev.filter((id) => id !== commentId)
+    );
+    void fetchComments();
+  }
+
   return (
     <div className="mt-20">
 
@@ -266,37 +334,67 @@ export default function Comments({
     "
   >
 
-    <div className="flex items-center gap-3 mb-4">
+    <div className="flex items-center justify-between gap-4 mb-4">
 
-      {/* Avatar */}
-      <div
-        className="
-          w-11
-          h-11
-          rounded-full
-          bg-cyan-400
-          text-black
-          flex
-          items-center
-          justify-center
-          font-bold
-        "
-      >
-        {comment.profiles?.username?.charAt(0)?.toUpperCase()}
+      <div className="flex items-center gap-3 min-w-0">
+
+        {/* Avatar */}
+        <div
+          className="
+            w-11
+            h-11
+            shrink-0
+            rounded-full
+            bg-cyan-400
+            text-black
+            flex
+            items-center
+            justify-center
+            font-bold
+          "
+        >
+          {comment.profiles?.username?.charAt(0)?.toUpperCase()}
+        </div>
+
+        {/* User */}
+        <div className="min-w-0">
+
+          <h4 className="font-semibold text-white truncate">
+            {comment.profiles?.username || "Anonymous"}
+          </h4>
+
+          <p className="text-xs text-gray-400">
+            {formatCommentDate(comment.created_at)}
+          </p>
+
+        </div>
+
       </div>
 
-      {/* User */}
-      <div>
-
-        <h4 className="font-semibold text-white">
-          {comment.profiles?.username || "Anonymous"}
-        </h4>
-
-        <p className="text-xs text-gray-400">
-          {formatCommentDate(comment.created_at)}
-        </p>
-
-      </div>
+      {currentUserId === comment.user_id && !comment.isOptimistic && (
+        <button
+          type="button"
+          onClick={() => deleteComment(comment.id)}
+          disabled={deletingCommentIds.includes(comment.id)}
+          className="
+            shrink-0
+            rounded-xl
+            border
+            border-red-400/20
+            bg-red-400/10
+            px-3
+            py-2
+            text-sm
+            font-semibold
+            text-red-200
+            transition
+            hover:bg-red-400/20
+            disabled:opacity-50
+          "
+        >
+          {deletingCommentIds.includes(comment.id) ? "Deleting..." : "Delete"}
+        </button>
+      )}
 
     </div>
 
